@@ -112,7 +112,6 @@
 
         <!-- Content Body -->
         <main class="content-body">
-            <!-- Flash Messages -->
             @if(session('success'))
                 <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 shadow-sm" role="alert">
                     <i class="bi bi-check-circle-fill text-success fs-5"></i>
@@ -123,7 +122,7 @@
 
             @if($errors->any())
                 <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-                    <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Please fix the following errors:</div>
+                    <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Please check errors:</div>
                     <ul class="mb-0 ps-3">
                         @foreach($errors->all() as $err)
                             <li>{{ $err }}</li>
@@ -140,9 +139,9 @@
 
 <!-- Global Quick Add Transaction Modal -->
 <div class="modal fade" id="newTransactionModal" tabindex="-1" aria-labelledby="newTransactionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <form action="{{ route('transactions.store') }}" method="POST">
+            <form action="{{ route('transactions.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold" id="newTransactionModalLabel">
@@ -175,7 +174,7 @@
 
                     <div class="row g-3">
                         <!-- Amount -->
-                        <div class="col-md-7">
+                        <div class="col-md-4">
                             <label class="form-label small fw-semibold">Amount ({{ Auth::user()->currency ?? 'USD' }}) *</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
@@ -183,8 +182,17 @@
                             </div>
                         </div>
 
+                        <!-- Processing Fee -->
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Fee / Surcharge</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" class="form-control" name="fee" value="0.00">
+                            </div>
+                        </div>
+
                         <!-- Date -->
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label small fw-semibold">Date *</label>
                             <input type="date" class="form-control" name="transaction_date" value="{{ date('Y-m-d') }}" required>
                         </div>
@@ -210,18 +218,26 @@
                             </select>
                         </div>
 
-                        <!-- Category -->
+                        <!-- Category & Subcategories -->
                         <div class="col-md-6" id="modalCategoryWrapper">
-                            <label class="form-label small fw-semibold">Category *</label>
+                            <label class="form-label small fw-semibold">Category & Subcategory *</label>
                             <select class="form-select" name="category_id">
-                                @foreach(\App\Models\Category::forUser(Auth::id())->get() as $cat)
-                                    <option value="{{ $cat->id }}">{{ $cat->name }} ({{ ucfirst($cat->type) }})</option>
+                                @php
+                                    $parents = \App\Models\Category::forUser(Auth::id())->whereNull('parent_id')->with('children')->get();
+                                @endphp
+                                @foreach($parents as $parent)
+                                    <optgroup label="{{ $parent->name }} ({{ ucfirst($parent->type) }})">
+                                        <option value="{{ $parent->id }}">{{ $parent->name }} (General)</option>
+                                        @foreach($parent->children as $child)
+                                            <option value="{{ $child->id }}">↳ {{ $child->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                         </div>
 
                         <!-- Description -->
-                        <div class="col-12">
+                        <div class="col-md-6">
                             <label class="form-label small fw-semibold">Description *</label>
                             <input type="text" class="form-control" name="description" placeholder="e.g. AWS Cloud Hosting, Client Retainer" required>
                         </div>
@@ -234,15 +250,61 @@
 
                         <!-- Payment Method -->
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold">Payment Method</label>
-                            <select class="form-select" name="payment_method">
+                            <label class="form-label small fw-semibold">Payment Method *</label>
+                            <select class="form-select" name="payment_method" required>
                                 <option value="bank_transfer">Bank Transfer (ACH / Wire)</option>
-                                <option value="card">Credit / Debit Card</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
                                 <option value="cash">Cash / Petty Cash</option>
-                                <option value="upi">UPI / Digital Wallet</option>
+                                <option value="upi">UPI / Mobile Pay</option>
+                                <option value="paypal">PayPal</option>
+                                <option value="stripe">Stripe</option>
                                 <option value="check">Check</option>
                                 <option value="other">Other</option>
                             </select>
+                        </div>
+
+                        <!-- Reference Number -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Reference / Invoice #</label>
+                            <input type="text" class="form-control" name="reference_number" placeholder="e.g. INV-2026-001, ACH-9921">
+                        </div>
+
+                        <!-- Attachment / Receipt Upload -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">
+                                <i class="bi bi-paperclip me-1"></i> Receipt / Invoice Attachment
+                            </label>
+                            <input type="file" class="form-control" name="receipt" accept=".pdf,.jpg,.jpeg,.png,.webp">
+                            <div class="form-text small" style="font-size: 0.725rem;">PDF, PNG, JPG up to 5MB</div>
+                        </div>
+
+                        <!-- Recurring Transaction Controls -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="w-100 p-2 border rounded bg-light">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input" type="checkbox" name="is_recurring" value="1" id="is_recurring_check" onchange="toggleRecurringModal(this.checked)">
+                                    <label class="form-check-label small fw-semibold text-dark" for="is_recurring_check">
+                                        <i class="bi bi-arrow-repeat me-1 text-primary"></i> Mark as Recurring Transaction
+                                    </label>
+                                </div>
+                                <div id="recurringIntervalWrapper" style="display: none;" class="mt-2">
+                                    <label class="form-label small fw-semibold">Recurrence Frequency</label>
+                                    <select class="form-select form-select-sm" name="recurrence_interval">
+                                        <option value="monthly" selected>Monthly (e.g. rent, software)</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="quarterly">Quarterly</option>
+                                        <option value="yearly">Yearly</option>
+                                        <option value="daily">Daily</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Notes / Memo</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Optional notes for accounting or tax reconciliation"></textarea>
                         </div>
                     </div>
                 </div>
@@ -270,6 +332,10 @@ function toggleModalType(type) {
         catWrapper.style.display = 'block';
         accLabel.innerText = 'Account *';
     }
+}
+
+function toggleRecurringModal(checked) {
+    document.getElementById('recurringIntervalWrapper').style.display = checked ? 'block' : 'none';
 }
 </script>
 

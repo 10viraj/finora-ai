@@ -46,8 +46,22 @@ class Category extends Model
     }
 
     /**
-     * Scope to categories accessible to a specific user (their custom ones + global defaults)
+     * Hierarchical display name: "Parent Category > Subcategory"
      */
+    public function getDisplayNameAttribute(): string
+    {
+        if ($this->parent_id && $this->relationLoaded('parent') && $this->parent) {
+            return $this->parent->name . ' > ' . $this->name;
+        }
+
+        return $this->name;
+    }
+
+    public function scopeParentsOnly($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
     public function scopeForUser($query, $userId)
     {
         return $query->where(function ($q) use ($userId) {

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Transaction extends Model
 {
@@ -60,6 +61,28 @@ class Transaction extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function getFormattedPaymentMethodAttribute(): string
+    {
+        $names = [
+            'bank_transfer' => 'Bank Transfer (ACH/Wire)',
+            'credit_card' => 'Credit Card',
+            'debit_card' => 'Debit Card',
+            'cash' => 'Cash / Petty Cash',
+            'upi' => 'UPI / Mobile Pay',
+            'paypal' => 'PayPal',
+            'stripe' => 'Stripe',
+            'check' => 'Check',
+            'other' => 'Other',
+        ];
+
+        return $names[$this->payment_method] ?? ucwords(str_replace('_', ' ', $this->payment_method));
+    }
+
+    public function hasReceipt(): bool
+    {
+        return !empty($this->receipt_path) && Storage::disk('local')->exists($this->receipt_path);
+    }
+
     public function scopeCompleted($query)
     {
         return $query->where('status', 'completed');
@@ -78,6 +101,11 @@ class Transaction extends Model
     public function scopeTransfer($query)
     {
         return $query->where('type', 'transfer');
+    }
+
+    public function scopeRecurring($query)
+    {
+        return $query->where('is_recurring', true);
     }
 
     public function scopeForMonth($query, $monthYear)

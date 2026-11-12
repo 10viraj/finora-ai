@@ -22,12 +22,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Create Default Categories
-        $categoriesData = [
+        // 1. Create Parent Categories
+        $parentCategoriesData = [
             // Income
             ['name' => 'Salary & Wages', 'type' => 'income', 'icon' => 'bi-cash-coin', 'color' => '#10b981'],
-            ['name' => 'Client Revenue / Sales', 'type' => 'income', 'icon' => 'bi-shop', 'color' => '#059669'],
-            ['name' => 'Freelance / Consulting', 'type' => 'income', 'icon' => 'bi-laptop', 'color' => '#3b82f6'],
+            ['name' => 'Client Revenue & Sales', 'type' => 'income', 'icon' => 'bi-shop', 'color' => '#059669'],
+            ['name' => 'Freelance & Consulting', 'type' => 'income', 'icon' => 'bi-laptop', 'color' => '#3b82f6'],
             ['name' => 'Investments & Dividends', 'type' => 'income', 'icon' => 'bi-graph-up-arrow', 'color' => '#8b5cf6'],
             ['name' => 'Refunds & Grants', 'type' => 'income', 'icon' => 'bi-arrow-counterclockwise', 'color' => '#06b6d4'],
 
@@ -45,11 +45,29 @@ class DatabaseSeeder extends Seeder
         ];
 
         $categories = [];
-        foreach ($categoriesData as $c) {
+        foreach ($parentCategoriesData as $c) {
             $categories[$c['name']] = Category::create($c);
         }
 
-        // 2. Create Demo User (Small Business / Freelancer)
+        // Subcategories
+        $subcategoriesData = [
+            ['name' => 'Retainer Agreements', 'type' => 'income', 'parent_id' => $categories['Client Revenue & Sales']->id, 'icon' => 'bi-file-earmark-text', 'color' => '#059669'],
+            ['name' => 'Project Milestones', 'type' => 'income', 'parent_id' => $categories['Client Revenue & Sales']->id, 'icon' => 'bi-flag', 'color' => '#059669'],
+            ['name' => 'Cloud Hosting (AWS/GCP)', 'type' => 'expense', 'parent_id' => $categories['Software & Subscriptions']->id, 'icon' => 'bi-hdd-network', 'color' => '#6366f1'],
+            ['name' => 'Developer Tooling (GitHub)', 'type' => 'expense', 'parent_id' => $categories['Software & Subscriptions']->id, 'icon' => 'bi-code-slash', 'color' => '#6366f1'],
+            ['name' => 'Design & Collaboration (Figma)', 'type' => 'expense', 'parent_id' => $categories['Software & Subscriptions']->id, 'icon' => 'bi-palette', 'color' => '#6366f1'],
+            ['name' => 'Search Ads (Google Ads)', 'type' => 'expense', 'parent_id' => $categories['Marketing & Advertising']->id, 'icon' => 'bi-google', 'color' => '#84cc16'],
+            ['name' => 'Social Media (LinkedIn Ads)', 'type' => 'expense', 'parent_id' => $categories['Marketing & Advertising']->id, 'icon' => 'bi-linkedin', 'color' => '#84cc16'],
+            ['name' => 'High-Speed Fiber Internet', 'type' => 'expense', 'parent_id' => $categories['Utilities & Internet']->id, 'icon' => 'bi-router', 'color' => '#f59e0b'],
+            ['name' => 'Team Brainstorm Dinners', 'type' => 'expense', 'parent_id' => $categories['Food & Business Dining']->id, 'icon' => 'bi-cup-straw', 'color' => '#f97316'],
+        ];
+
+        $subcategories = [];
+        foreach ($subcategoriesData as $sc) {
+            $subcategories[$sc['name']] = Category::create($sc);
+        }
+
+        // 2. Create Demo User (Small Business)
         $user = User::create([
             'name' => 'Alex Morgan',
             'email' => 'alex@example.com',
@@ -62,7 +80,7 @@ class DatabaseSeeder extends Seeder
             'ai_model' => 'gpt-4o-mini',
         ]);
 
-        // Also create a second individual account
+        // Individual account
         $individual = User::create([
             'name' => 'Sarah Connor',
             'email' => 'sarah@example.com',
@@ -73,7 +91,7 @@ class DatabaseSeeder extends Seeder
             'phone' => '+1 (555) 987-6543',
         ]);
 
-        // 3. Create Accounts for Alex Morgan
+        // 3. Create Accounts for Alex
         $bizChecking = Account::create([
             'user_id' => $user->id,
             'name' => 'Business Operating (Chase)',
@@ -95,7 +113,7 @@ class DatabaseSeeder extends Seeder
             'initial_balance' => 12000.00,
             'currency' => 'USD',
             'color' => '#10b981',
-            'description' => 'Reserved funds for upcoming quarterly tax payments and 3-month runway',
+            'description' => 'Reserved funds for upcoming quarterly tax payments and runway',
         ]);
 
         $bizCard = Account::create([
@@ -119,10 +137,10 @@ class DatabaseSeeder extends Seeder
             'initial_balance' => 500.00,
             'currency' => 'USD',
             'color' => '#f59e0b',
-            'description' => 'On-hand cash for miscellaneous supplies and courier',
+            'description' => 'On-hand cash for miscellaneous supplies and couriers',
         ]);
 
-        // Accounts for Sarah
+        // Individual account
         Account::create([
             'user_id' => $individual->id,
             'name' => 'Primary Checking',
@@ -134,35 +152,34 @@ class DatabaseSeeder extends Seeder
             'color' => '#2563eb',
         ]);
 
-        // 4. Create Historical & Current Month Transactions for Alex
+        // 4. Sample Transactions with Subcategories, Recurring Flags, and Payment Methods
         $now = Carbon::now();
-        $currentMonth = $now->format('Y-m');
-        $lastMonth = $now->copy()->subMonth()->format('Y-m');
-        $twoMonthsAgo = $now->copy()->subMonths(2)->format('Y-m');
-
         $sampleTransactions = [
-            // Current Month Income
+            // Current Month
             [
                 'account_id' => $bizChecking->id,
-                'category_id' => $categories['Client Revenue / Sales']->id,
+                'category_id' => $subcategories['Retainer Agreements']->id,
                 'type' => 'income',
                 'amount' => 8500.00,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(2)->format('Y-m-d'),
-                'description' => 'Retainer: Nexus Health Inc Web Development',
+                'description' => 'Monthly Retainer: Nexus Health Architecture',
                 'payee_payer' => 'Nexus Health Inc',
                 'payment_method' => 'bank_transfer',
                 'reference_number' => 'ACH-88491',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $bizChecking->id,
-                'category_id' => $categories['Client Revenue / Sales']->id,
+                'category_id' => $subcategories['Project Milestones']->id,
                 'type' => 'income',
                 'amount' => 4200.00,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(6)->format('Y-m-d'),
-                'description' => 'Milestone 2: FinTech Mobile App Design',
-                'payee_payer' => 'Starlight Media',
+                'description' => 'Milestone 2 Delivery: FinTech UI/UX Sprint',
+                'payee_payer' => 'Starlight Media Co',
                 'payment_method' => 'bank_transfer',
                 'reference_number' => 'STR-1049',
+                'is_recurring' => false,
             ],
             [
                 'account_id' => $bizChecking->id,
@@ -173,10 +190,9 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Vanguard High-Yield Savings Interest',
                 'payee_payer' => 'Vanguard Group',
                 'payment_method' => 'bank_transfer',
-                'reference_number' => 'INT-2026',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
-
-            // Current Month Expenses
             [
                 'account_id' => $bizChecking->id,
                 'category_id' => $categories['Rent & Facilities']->id,
@@ -184,10 +200,12 @@ class DatabaseSeeder extends Seeder
                 'amount' => 1800.00,
                 'fee' => 0,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(1)->format('Y-m-d'),
-                'description' => 'Office Space Lease (WeWork Suite 402)',
+                'description' => 'Office Space Lease (Suite 402)',
                 'payee_payer' => 'WeWork Real Estate',
                 'payment_method' => 'bank_transfer',
                 'reference_number' => 'CHK-309',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $bizChecking->id,
@@ -200,72 +218,82 @@ class DatabaseSeeder extends Seeder
                 'payee_payer' => 'Elena Rostova',
                 'payment_method' => 'bank_transfer',
                 'reference_number' => 'PAY-2026-01',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $bizCard->id,
-                'category_id' => $categories['Software & Subscriptions']->id,
+                'category_id' => $subcategories['Cloud Hosting (AWS/GCP)']->id,
                 'type' => 'expense',
                 'amount' => 249.00,
                 'fee' => 0,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(3)->format('Y-m-d'),
                 'description' => 'AWS Cloud Infrastructure Hosting',
                 'payee_payer' => 'Amazon Web Services',
-                'payment_method' => 'card',
+                'payment_method' => 'credit_card',
                 'reference_number' => 'INV-AWS-883',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $bizCard->id,
-                'category_id' => $categories['Software & Subscriptions']->id,
+                'category_id' => $subcategories['Developer Tooling (GitHub)']->id,
                 'type' => 'expense',
                 'amount' => 120.00,
                 'fee' => 0,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(4)->format('Y-m-d'),
                 'description' => 'GitHub Enterprise & Copilot seats',
                 'payee_payer' => 'GitHub Inc',
-                'payment_method' => 'card',
+                'payment_method' => 'credit_card',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $bizCard->id,
-                'category_id' => $categories['Marketing & Advertising']->id,
+                'category_id' => $subcategories['Search Ads (Google Ads)']->id,
                 'type' => 'expense',
                 'amount' => 650.00,
                 'fee' => 0,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(8)->format('Y-m-d'),
-                'description' => 'Google Search Ads campaign',
+                'description' => 'Google Search Ads Lead Campaign',
                 'payee_payer' => 'Google Ads',
-                'payment_method' => 'card',
+                'payment_method' => 'credit_card',
+                'is_recurring' => false,
             ],
             [
                 'account_id' => $bizChecking->id,
-                'category_id' => $categories['Utilities & Internet']->id,
+                'category_id' => $subcategories['High-Speed Fiber Internet']->id,
                 'type' => 'expense',
                 'amount' => 185.00,
                 'fee' => 0,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(7)->format('Y-m-d'),
-                'description' => 'Gigabit Fiber Internet & VoIP',
+                'description' => 'Dedicated Fiber Internet & Static IP',
                 'payee_payer' => 'AT&T Business',
                 'payment_method' => 'bank_transfer',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $pettyCash->id,
-                'category_id' => $categories['Food & Business Dining']->id,
+                'category_id' => $subcategories['Team Brainstorm Dinners']->id,
                 'type' => 'expense',
                 'amount' => 74.50,
                 'fee' => 0,
                 'transaction_date' => $now->copy()->startOfMonth()->addDays(9)->format('Y-m-d'),
-                'description' => 'Team lunch brainstorm meeting',
+                'description' => 'Team strategy lunch meeting',
                 'payee_payer' => 'Blue Bottle Cafe',
                 'payment_method' => 'cash',
+                'is_recurring' => false,
             ],
 
-            // Last Month (Historical)
+            // Prior Month Historical
             [
                 'account_id' => $bizChecking->id,
-                'category_id' => $categories['Client Revenue / Sales']->id,
+                'category_id' => $categories['Client Revenue & Sales']->id,
                 'type' => 'income',
                 'amount' => 11200.00,
                 'transaction_date' => $now->copy()->subMonth()->startOfMonth()->addDays(5)->format('Y-m-d'),
-                'description' => 'Q3 Enterprise Portal Delivery',
+                'description' => 'Enterprise System Integration Q3',
                 'payee_payer' => 'Acrobat Corp',
                 'payment_method' => 'bank_transfer',
             ],
@@ -278,6 +306,8 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Office Space Lease',
                 'payee_payer' => 'WeWork Real Estate',
                 'payment_method' => 'bank_transfer',
+                'is_recurring' => true,
+                'recurrence_interval' => 'monthly',
             ],
             [
                 'account_id' => $bizChecking->id,
@@ -285,51 +315,19 @@ class DatabaseSeeder extends Seeder
                 'type' => 'expense',
                 'amount' => 4800.00,
                 'transaction_date' => $now->copy()->subMonth()->startOfMonth()->addDays(15)->format('Y-m-d'),
-                'description' => 'Monthly Contractors Total',
+                'description' => 'Contractor Monthly Remuneration',
                 'payee_payer' => 'Various Contractors',
                 'payment_method' => 'bank_transfer',
             ],
             [
                 'account_id' => $bizCard->id,
-                'category_id' => $categories['Marketing & Advertising']->id,
+                'category_id' => $subcategories['Social Media (LinkedIn Ads)']->id,
                 'type' => 'expense',
                 'amount' => 850.00,
                 'transaction_date' => $now->copy()->subMonth()->startOfMonth()->addDays(12)->format('Y-m-d'),
-                'description' => 'LinkedIn B2B Lead Gen Campaign',
+                'description' => 'LinkedIn B2B Sponsored InMail',
                 'payee_payer' => 'LinkedIn Ads',
-                'payment_method' => 'card',
-            ],
-
-            // 2 Months Ago
-            [
-                'account_id' => $bizChecking->id,
-                'category_id' => $categories['Client Revenue / Sales']->id,
-                'type' => 'income',
-                'amount' => 9500.00,
-                'transaction_date' => $now->copy()->subMonths(2)->startOfMonth()->addDays(10)->format('Y-m-d'),
-                'description' => 'Mobile App Phase 1 Delivery',
-                'payee_payer' => 'Starlight Media',
-                'payment_method' => 'bank_transfer',
-            ],
-            [
-                'account_id' => $bizChecking->id,
-                'category_id' => $categories['Rent & Facilities']->id,
-                'type' => 'expense',
-                'amount' => 1800.00,
-                'transaction_date' => $now->copy()->subMonths(2)->startOfMonth()->addDays(1)->format('Y-m-d'),
-                'description' => 'Office Space Lease',
-                'payee_payer' => 'WeWork Real Estate',
-                'payment_method' => 'bank_transfer',
-            ],
-            [
-                'account_id' => $bizCard->id,
-                'category_id' => $categories['Software & Subscriptions']->id,
-                'type' => 'expense',
-                'amount' => 520.00,
-                'transaction_date' => $now->copy()->subMonths(2)->startOfMonth()->addDays(8)->format('Y-m-d'),
-                'description' => 'Figma, GitHub, Notion, AWS',
-                'payee_payer' => 'Various Tech SaaS',
-                'payment_method' => 'card',
+                'payment_method' => 'credit_card',
             ],
         ];
 
@@ -345,14 +343,14 @@ class DatabaseSeeder extends Seeder
         $bizCard->recalculateBalance();
         $pettyCash->recalculateBalance();
 
-        // 5. Create Monthly Budgets for Alex
+        // 5. Budgets
         Budget::create([
             'user_id' => $user->id,
             'category_id' => $categories['Software & Subscriptions']->id,
             'name' => 'Monthly SaaS & Cloud Stack',
             'amount' => 500.00,
             'period' => 'monthly',
-            'month_year' => $currentMonth,
+            'month_year' => $now->format('Y-m'),
             'alert_threshold' => 80,
             'notify_on_exceed' => true,
         ]);
@@ -363,59 +361,12 @@ class DatabaseSeeder extends Seeder
             'name' => 'Digital Ads & Growth',
             'amount' => 1000.00,
             'period' => 'monthly',
-            'month_year' => $currentMonth,
+            'month_year' => $now->format('Y-m'),
             'alert_threshold' => 85,
             'notify_on_exceed' => true,
         ]);
 
-        Budget::create([
-            'user_id' => $user->id,
-            'category_id' => $categories['Food & Business Dining']->id,
-            'name' => 'Client & Team Hospitality',
-            'amount' => 300.00,
-            'period' => 'monthly',
-            'month_year' => $currentMonth,
-            'alert_threshold' => 75,
-            'notify_on_exceed' => true,
-        ]);
-
-        Budget::create([
-            'user_id' => $user->id,
-            'category_id' => $categories['Rent & Facilities']->id,
-            'name' => 'Facility Lease & Office Operations',
-            'amount' => 2000.00,
-            'period' => 'monthly',
-            'month_year' => $currentMonth,
-            'alert_threshold' => 90,
-            'notify_on_exceed' => false,
-        ]);
-
-        // 6. Create Financial Goals
-        FinancialGoal::create([
-            'user_id' => $user->id,
-            'account_id' => $bizSavings->id,
-            'name' => '6-Month Operational Runway',
-            'target_amount' => 30000.00,
-            'current_amount' => 18200.00,
-            'target_date' => $now->copy()->addMonths(5)->format('Y-m-d'),
-            'category' => 'emergency_fund',
-            'notes' => 'Safety cushion covering all recurring leases and salaries.',
-            'status' => 'in_progress',
-        ]);
-
-        FinancialGoal::create([
-            'user_id' => $user->id,
-            'account_id' => $bizChecking->id,
-            'name' => 'AI Workstation & Hardware Upgrade',
-            'target_amount' => 5000.00,
-            'current_amount' => 3500.00,
-            'target_date' => $now->copy()->addMonths(2)->format('Y-m-d'),
-            'category' => 'equipment',
-            'notes' => 'High-memory workstations for local LLM inference and rendering.',
-            'status' => 'in_progress',
-        ]);
-
-        // 7. Create Invoices for Small Business
+        // 6. Invoices
         $inv1 = Invoice::create([
             'user_id' => $user->id,
             'invoice_number' => 'INV-2026-001',
@@ -442,33 +393,7 @@ class DatabaseSeeder extends Seeder
             'total' => 8500.00,
         ]);
 
-        $inv2 = Invoice::create([
-            'user_id' => $user->id,
-            'invoice_number' => 'INV-2026-002',
-            'client_name' => 'Starlight Media Co',
-            'client_email' => 'accounts@starlightmedia.example',
-            'client_address' => '100 Sunset Blvd, Los Angeles, CA 90028',
-            'issue_date' => $now->copy()->startOfMonth()->addDays(5)->format('Y-m-d'),
-            'due_date' => $now->copy()->startOfMonth()->addDays(20)->format('Y-m-d'),
-            'subtotal' => 4500.00,
-            'tax_rate' => 5.00,
-            'tax_amount' => 225.00,
-            'discount_amount' => 0.00,
-            'total_amount' => 4725.00,
-            'currency' => 'USD',
-            'status' => 'sent',
-            'notes' => 'Net 15 payment terms. Please submit to ACH account 4821.',
-        ]);
-
-        InvoiceItem::create([
-            'invoice_id' => $inv2->id,
-            'description' => 'Design Sprint & Figma Interactive Prototypes',
-            'quantity' => 30,
-            'unit_price' => 150.00,
-            'total' => 4500.00,
-        ]);
-
-        // 8. Create AI Insights & Recommendations
+        // 7. AI Insights
         AiInsight::create([
             'user_id' => $user->id,
             'type' => 'savings_opportunity',
@@ -477,26 +402,6 @@ class DatabaseSeeder extends Seeder
             'detailed_analysis' => 'Based on transaction patterns over the last 90 days, multiple duplicate recurring charges were found. We identified 3 seats billed under GitHub and Figma with zero activity recorded. Removing dormant seats yields annual savings of $1,140.',
             'priority' => 'medium',
             'action_suggested' => 'Audit team member seat permissions under Settings > Subscriptions.',
-        ]);
-
-        AiInsight::create([
-            'user_id' => $user->id,
-            'type' => 'cashflow_forecast',
-            'title' => 'Positive 30-Day Cashflow Projection',
-            'summary' => 'Projected net surplus of $7,450 by month end with 82% confidence. Expected invoice receivables cover all upcoming operational liabilities.',
-            'detailed_analysis' => 'Incoming receivables: $4,725 (INV-2026-002) due in 9 days. Scheduled outflows: Rent ($1,800) paid, Payroll ($2,400) remaining. Net projected operational buffer remains strong at $38,000+ across all liquid accounts.',
-            'priority' => 'low',
-            'action_suggested' => 'Consider transferring $3,500 surplus into high-yield tax reserve.',
-        ]);
-
-        AiInsight::create([
-            'user_id' => $user->id,
-            'type' => 'budget_warning',
-            'title' => 'Marketing & Ad Spend Pace Alert',
-            'summary' => 'You have utilized 65.0% of your $1,000 Marketing budget within the first 12 days of the month.',
-            'detailed_analysis' => 'At your current burn rate of $54.17/day on Google Ads, you will surpass your $1,000 threshold by day 19, reaching an estimated $1,625 by month end unless daily ad caps are dialed back.',
-            'priority' => 'high',
-            'action_suggested' => 'Adjust Google Ads daily budget from $80/day to $40/day to stay within limits.',
         ]);
     }
 }

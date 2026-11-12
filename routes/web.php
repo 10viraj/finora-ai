@@ -31,10 +31,13 @@ Route::middleware('auth')->group(function () {
     // Module 1: Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Transactions
+    // Module 2: Transactions
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
+    Route::get('/transactions/{transaction}/edit', [TransactionController::class, 'edit'])->name('transactions.edit');
+    Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
+    Route::get('/transactions/{transaction}/receipt', [TransactionController::class, 'downloadReceipt'])->name('transactions.receipt');
 
     // Accounts
     Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
@@ -46,19 +49,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/budgets', [BudgetController::class, 'store'])->name('budgets.store');
     Route::delete('/budgets/{budget}', [BudgetController::class, 'destroy'])->name('budgets.destroy');
 
-    // Invoices (Small Business billing)
+    // Invoices
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
     Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
     Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.status');
 
-    // Reports & Exports (DomPDF & Laravel Excel)
+    // Reports & Exports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/pdf', [ReportController::class, 'downloadPdf'])->name('reports.pdf');
     Route::get('/reports/excel', [ReportController::class, 'exportExcel'])->name('reports.excel');
 
-    // AI Financial Advisor & Insights
+    // AI Financial Advisor
     Route::get('/ai-advisor', [AiAdvisorController::class, 'index'])->name('ai.index');
     Route::post('/ai-advisor/generate', [AiAdvisorController::class, 'generate'])->name('ai.generate');
     Route::post('/ai-advisor/ask', [AiAdvisorController::class, 'ask'])->name('ai.ask');
