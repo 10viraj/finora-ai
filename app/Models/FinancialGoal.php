@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FinancialGoal extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToUser, SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -50,3 +52,4 @@ class FinancialGoal extends Model
         return min(100.0, round(($this->current_amount / (float) $this->target_amount) * 100, 1));
     }
 }
+

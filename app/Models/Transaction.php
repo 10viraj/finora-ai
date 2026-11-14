@@ -2,22 +2,27 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class Transaction extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToUser, SoftDeletes;
 
     protected $fillable = [
         'user_id',
         'account_id',
         'destination_account_id',
         'category_id',
+        'payment_method_id',
         'type',
         'amount',
+        'currency',
         'fee',
         'transaction_date',
         'description',
@@ -41,6 +46,11 @@ class Transaction extends Model
         ];
     }
 
+    protected $attributes = [
+        'currency' => 'INR',
+        'status' => 'completed',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -59,6 +69,21 @@ class Transaction extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function paymentMethodRelation(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'payment_method_id');
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'payment_method_id');
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 
     public function getFormattedPaymentMethodAttribute(): string

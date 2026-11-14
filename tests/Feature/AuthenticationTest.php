@@ -65,3 +65,4 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard'));
     }
 }
+

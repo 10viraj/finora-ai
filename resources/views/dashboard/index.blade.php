@@ -8,7 +8,7 @@
 
     <!-- AI Alert / Highlight Banner -->
     @if($latestInsight)
-        <div class="ai-card p-3 mb-4 d-flex align-items-center justify-content-between shadow-sm">
+        <div class="ai-card p-3 mb-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 shadow-sm">
             <div class="d-flex align-items-center gap-3">
                 <div class="bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; min-width: 42px;">
                     <i class="bi bi-stars fs-5"></i>
@@ -23,8 +23,8 @@
                     <p class="mb-0 small text-secondary mt-1">{{ $latestInsight->summary }}</p>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2 ms-3">
-                <a href="{{ route('ai.index') }}" class="btn btn-sm btn-primary text-nowrap">
+            <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+                <a href="{{ route('ai.index') }}" class="btn btn-sm btn-primary text-nowrap w-100 w-md-auto text-center">
                     Review Insight <i class="bi bi-arrow-right ms-1"></i>
                 </a>
             </div>
@@ -40,7 +40,7 @@
                     <div>
                         <div class="text-muted small fw-semibold text-uppercase tracking-wider">Current Balance</div>
                         <h3 class="fw-bold text-dark mt-2 mb-0">
-                            ${{ number_format($totalBalance, 2) }}
+                            {{ $currencySymbol ?? '₹' }}{{ number_format($totalBalance, 2) }}
                         </h3>
                     </div>
                     <div class="stat-icon bg-primary bg-opacity-10 text-primary">
@@ -61,7 +61,7 @@
                     <div>
                         <div class="text-muted small fw-semibold text-uppercase tracking-wider">Monthly Income</div>
                         <h3 class="fw-bold text-success mt-2 mb-0">
-                            +${{ number_format($monthlyIncome, 2) }}
+                            +{{ $currencySymbol ?? '₹' }}{{ number_format($monthlyIncome, 2) }}
                         </h3>
                     </div>
                     <div class="stat-icon bg-success bg-opacity-10 text-success">
@@ -70,7 +70,7 @@
                 </div>
                 <div class="mt-3 pt-2 border-top border-light d-flex align-items-center justify-content-between text-muted small">
                     <span>{{ now()->format('F Y') }}</span>
-                    <span class="text-muted">All-time: ${{ number_format($allTimeIncome, 0) }}</span>
+                    <span class="text-muted">All-time: {{ $currencySymbol ?? '₹' }}{{ number_format($allTimeIncome, 0) }}</span>
                 </div>
             </div>
         </div>
@@ -82,7 +82,7 @@
                     <div>
                         <div class="text-muted small fw-semibold text-uppercase tracking-wider">Monthly Expenses</div>
                         <h3 class="fw-bold text-danger mt-2 mb-0">
-                            -${{ number_format($monthlyExpenses, 2) }}
+                            -{{ $currencySymbol ?? '₹' }}{{ number_format($monthlyExpenses, 2) }}
                         </h3>
                     </div>
                     <div class="stat-icon bg-danger bg-opacity-10 text-danger">
@@ -91,7 +91,7 @@
                 </div>
                 <div class="mt-3 pt-2 border-top border-light d-flex align-items-center justify-content-between text-muted small">
                     <span>{{ now()->format('F Y') }}</span>
-                    <span class="text-muted">All-time: ${{ number_format($allTimeExpenses, 0) }}</span>
+                    <span class="text-muted">All-time: {{ $currencySymbol ?? '₹' }}{{ number_format($allTimeExpenses, 0) }}</span>
                 </div>
             </div>
         </div>
@@ -103,7 +103,7 @@
                     <div>
                         <div class="text-muted small fw-semibold text-uppercase tracking-wider">Monthly Savings</div>
                         <h3 class="fw-bold {{ $monthlySavings >= 0 ? 'text-primary' : 'text-danger' }} mt-2 mb-0">
-                            {{ $monthlySavings >= 0 ? '+' : '' }}${{ number_format($monthlySavings, 2) }}
+                            {{ $monthlySavings >= 0 ? '+' : '-' }}{{ $currencySymbol ?? '₹' }}{{ number_format(abs($monthlySavings), 2) }}
                         </h3>
                     </div>
                     <div class="stat-icon bg-info bg-opacity-10 text-info">
@@ -431,3 +431,4 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endpush
+

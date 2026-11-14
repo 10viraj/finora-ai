@@ -3,17 +3,29 @@
 namespace Database\Seeders;
 
 use App\Models\Account;
+use App\Models\AiConversation;
 use App\Models\AiInsight;
+use App\Models\AiMessage;
+use App\Models\AiRecommendation;
+use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\Budget;
+use App\Models\BudgetCategory;
 use App\Models\Category;
 use App\Models\FinancialGoal;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\Notification;
+use App\Models\PaymentMethod;
+use App\Models\RecurringTransaction;
 use App\Models\Transaction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,6 +34,77 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // 0. Reset cached roles and permissions
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Seed Spatie Permissions
+        $permissions = [
+            'view_transactions',
+            'create_transactions',
+            'edit_transactions',
+            'delete_transactions',
+            'manage_accounts',
+            'manage_budgets',
+            'manage_recurring',
+            'view_reports',
+            'export_reports',
+            'use_ai_advisor',
+            'view_audit_logs',
+        ];
+
+        foreach ($permissions as $permName) {
+            Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
+        }
+
+        // Seed Spatie Roles
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $adminRole->syncPermissions(Permission::all());
+
+        $businessRole = Role::firstOrCreate(['name' => 'small_business', 'guard_name' => 'web']);
+        $businessRole->syncPermissions([
+            'view_transactions',
+            'create_transactions',
+            'edit_transactions',
+            'delete_transactions',
+            'manage_accounts',
+            'manage_budgets',
+            'manage_recurring',
+            'view_reports',
+            'export_reports',
+            'use_ai_advisor',
+        ]);
+
+        $individualRole = Role::firstOrCreate(['name' => 'individual', 'guard_name' => 'web']);
+        $individualRole->syncPermissions([
+            'view_transactions',
+            'create_transactions',
+            'edit_transactions',
+            'delete_transactions',
+            'manage_accounts',
+            'manage_budgets',
+            'manage_recurring',
+            'view_reports',
+            'export_reports',
+            'use_ai_advisor',
+        ]);
+
+        // Seed Standard Payment Methods
+        $paymentMethodsData = [
+            ['name' => 'Cash', 'code' => 'cash', 'icon' => 'bi-cash'],
+            ['name' => 'UPI / Mobile Pay', 'code' => 'upi', 'icon' => 'bi-phone'],
+            ['name' => 'Credit Card', 'code' => 'credit_card', 'icon' => 'bi-credit-card'],
+            ['name' => 'Debit Card', 'code' => 'debit_card', 'icon' => 'bi-credit-card-2-front'],
+            ['name' => 'Bank Transfer', 'code' => 'bank_transfer', 'icon' => 'bi-bank'],
+            ['name' => 'Net Banking', 'code' => 'net_banking', 'icon' => 'bi-globe'],
+        ];
+
+        $paymentMethodModels = [];
+        foreach ($paymentMethodsData as $pm) {
+            $paymentMethodModels[$pm['code']] = PaymentMethod::firstOrCreate(
+                ['code' => $pm['code'], 'user_id' => null],
+                array_merge($pm, ['is_active' => true])
+            );
+        }
         // 1. Create Parent Categories
         $parentCategoriesData = [
             // Income
@@ -67,7 +150,17 @@ class DatabaseSeeder extends Seeder
             $subcategories[$sc['name']] = Category::create($sc);
         }
 
-        // 2. Create Demo User (Small Business)
+        // 2. Create Users
+        $admin = User::create([
+            'name' => 'FinTrack Administrator',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password123'),
+            'role' => 'admin',
+            'business_name' => 'FinTrack Global Admin',
+            'currency' => 'USD',
+        ]);
+        $admin->assignRole('admin');
+
         $user = User::create([
             'name' => 'Alex Morgan',
             'email' => 'alex@example.com',
@@ -79,6 +172,7 @@ class DatabaseSeeder extends Seeder
             'ai_provider' => 'openai',
             'ai_model' => 'gpt-4o-mini',
         ]);
+        $user->assignRole('small_business');
 
         // Individual account
         $individual = User::create([
@@ -90,6 +184,7 @@ class DatabaseSeeder extends Seeder
             'currency' => 'USD',
             'phone' => '+1 (555) 987-6543',
         ]);
+        $individual->assignRole('individual');
 
         // 3. Create Accounts for Alex
         $bizChecking = Account::create([
@@ -334,6 +429,9 @@ class DatabaseSeeder extends Seeder
         foreach ($sampleTransactions as $tx) {
             $tx['user_id'] = $user->id;
             $tx['status'] = 'completed';
+            if (!empty($tx['payment_method']) && isset($paymentMethodModels[$tx['payment_method']])) {
+                $tx['payment_method_id'] = $paymentMethodModels[$tx['payment_method']]->id;
+            }
             Transaction::create($tx);
         }
 
@@ -343,27 +441,142 @@ class DatabaseSeeder extends Seeder
         $bizCard->recalculateBalance();
         $pettyCash->recalculateBalance();
 
-        // 5. Budgets
-        Budget::create([
+        // 5. Budgets (Monthly and Yearly with Spending Limits)
+        $saasBudget = Budget::create([
             'user_id' => $user->id,
             'category_id' => $categories['Software & Subscriptions']->id,
             'name' => 'Monthly SaaS & Cloud Stack',
             'amount' => 500.00,
+            'spending_limit' => 600.00,
             'period' => 'monthly',
             'month_year' => $now->format('Y-m'),
             'alert_threshold' => 80,
             'notify_on_exceed' => true,
+            'notes' => 'Allocated for GitHub, AWS, and productivity subscriptions.',
+        ]);
+
+        $marketingBudget = Budget::create([
+            'user_id' => $user->id,
+            'category_id' => $categories['Marketing & Advertising']->id,
+            'name' => 'Digital Ads & Growth',
+            'amount' => 1000.00,
+            'spending_limit' => 1200.00,
+            'period' => 'monthly',
+            'month_year' => $now->format('Y-m'),
+            'alert_threshold' => 85,
+            'notify_on_exceed' => true,
+            'notes' => 'Google Ads and LinkedIn B2B campaign ceiling.',
+        ]);
+
+        Budget::create([
+            'user_id' => $user->id,
+            'category_id' => $categories['Food & Business Dining']->id,
+            'name' => 'Team Dining & Entertainment',
+            'amount' => 100.00,
+            'spending_limit' => 120.00,
+            'period' => 'monthly',
+            'month_year' => $now->format('Y-m'),
+            'alert_threshold' => 75,
+            'notify_on_exceed' => true,
+            'notes' => 'Client lunches and team coffee expenses.',
+        ]);
+
+        Budget::create([
+            'user_id' => $user->id,
+            'category_id' => $categories['Rent & Facilities']->id,
+            'name' => 'Office Space & Lease',
+            'amount' => 2000.00,
+            'spending_limit' => 2000.00,
+            'period' => 'monthly',
+            'month_year' => $now->format('Y-m'),
+            'alert_threshold' => 90,
+            'notify_on_exceed' => true,
+            'notes' => 'WeWork main branch lease.',
+        ]);
+
+        // Yearly Budgets
+        Budget::create([
+            'user_id' => $user->id,
+            'category_id' => $categories['Software & Subscriptions']->id,
+            'name' => 'Annual IT Infrastructure Cap',
+            'amount' => 8000.00,
+            'spending_limit' => 9500.00,
+            'period' => 'yearly',
+            'month_year' => $now->format('Y'),
+            'alert_threshold' => 80,
+            'notify_on_exceed' => true,
+            'notes' => 'Full-year cloud and developer tools spending cap.',
         ]);
 
         Budget::create([
             'user_id' => $user->id,
             'category_id' => $categories['Marketing & Advertising']->id,
-            'name' => 'Digital Ads & Growth',
-            'amount' => 1000.00,
-            'period' => 'monthly',
-            'month_year' => $now->format('Y-m'),
+            'name' => 'Annual Growth & Acquisition',
+            'amount' => 15000.00,
+            'spending_limit' => 18000.00,
+            'period' => 'yearly',
+            'month_year' => $now->format('Y'),
             'alert_threshold' => 85,
             'notify_on_exceed' => true,
+            'notes' => 'Annual advertising ceiling across all channels.',
+        ]);
+
+        // 5b. Budget Categories Breakdown
+        BudgetCategory::create([
+            'budget_id' => $saasBudget->id,
+            'category_id' => $subcategories['Cloud Hosting (AWS/GCP)']->id,
+            'allocated_amount' => 350.00,
+            'spending_limit' => 400.00,
+            'alert_threshold' => 85,
+            'notes' => 'Primary production infrastructure & compute',
+        ]);
+
+        BudgetCategory::create([
+            'budget_id' => $saasBudget->id,
+            'category_id' => $subcategories['Developer Tooling (GitHub)']->id,
+            'allocated_amount' => 150.00,
+            'spending_limit' => 200.00,
+            'alert_threshold' => 80,
+            'notes' => 'GitHub Enterprise seat licenses',
+        ]);
+
+        // 5c. Recurring Transactions
+        RecurringTransaction::create([
+            'user_id' => $user->id,
+            'account_id' => $bizChecking->id,
+            'category_id' => $categories['Rent & Facilities']->id,
+            'payment_method_id' => $paymentMethodModels['bank_transfer']->id ?? null,
+            'type' => 'expense',
+            'amount' => 2000.00,
+            'fee' => 0.00,
+            'description' => 'WeWork Monthly Dedicated Office',
+            'payee_payer' => 'WeWork Co-Working',
+            'payment_method' => 'bank_transfer',
+            'recurrence_interval' => 'monthly',
+            'start_date' => $now->copy()->startOfYear()->format('Y-m-d'),
+            'next_run_date' => $now->copy()->addDays(5)->format('Y-m-d'),
+            'is_active' => true,
+            'auto_record' => true,
+            'notes' => 'Auto-debited on 1st of every month',
+        ]);
+
+        RecurringTransaction::create([
+            'user_id' => $user->id,
+            'account_id' => $bizCard->id,
+            'category_id' => $categories['Software & Subscriptions']->id,
+            'payment_method_id' => $paymentMethodModels['credit_card']->id ?? null,
+            'type' => 'expense',
+            'amount' => 44.00,
+            'fee' => 0.00,
+            'description' => 'GitHub Enterprise Team Plan',
+            'payee_payer' => 'GitHub Inc',
+            'payment_method' => 'credit_card',
+            'recurrence_interval' => 'monthly',
+            'start_date' => $now->copy()->startOfYear()->format('Y-m-d'),
+            'next_run_date' => $now->copy()->addDays(12)->format('Y-m-d'),
+            'is_active' => true,
+            'auto_record' => true,
+            'notes' => 'Team code repo & CI/CD pipeline',
         ]);
 
         // 6. Invoices
@@ -393,15 +606,83 @@ class DatabaseSeeder extends Seeder
             'total' => 8500.00,
         ]);
 
-        // 7. AI Insights
-        AiInsight::create([
+        // 7. AI Insights, Anomalies, and Monthly Summary
+        app(\App\Services\AiFinancialService::class)->analyzeFinances($user);
+
+        // 8. Attachments
+        $sampleTx = Transaction::where('user_id', $user->id)->first();
+        if ($sampleTx) {
+            Attachment::create([
+                'user_id' => $user->id,
+                'attachable_type' => Transaction::class,
+                'attachable_id' => $sampleTx->id,
+                'file_name' => 'receipt_chase_ach.pdf',
+                'file_path' => 'receipts/' . $user->id . '/receipt_chase_ach.pdf',
+                'file_type' => 'application/pdf',
+                'file_size' => 142857,
+                'description' => 'Bank verified ACH confirmation voucher',
+            ]);
+        }
+
+        // 9. Notifications (Budget & Transaction alerts)
+        Notification::create([
             'user_id' => $user->id,
-            'type' => 'savings_opportunity',
-            'title' => 'Software Subscription Creep Detected',
-            'summary' => 'You have 4 active design and developer tool subscriptions totaling $369/mo. Consolidating inactive Figma editor licenses could save ~$95/mo.',
-            'detailed_analysis' => 'Based on transaction patterns over the last 90 days, multiple duplicate recurring charges were found. We identified 3 seats billed under GitHub and Figma with zero activity recorded. Removing dormant seats yields annual savings of $1,140.',
-            'priority' => 'medium',
-            'action_suggested' => 'Audit team member seat permissions under Settings > Subscriptions.',
+            'type' => 'budget_alert',
+            'title' => 'Budget Alert: Monthly SaaS & Cloud Stack',
+            'message' => 'Monthly SaaS & Cloud Stack budget reached 82% of its allocated limit ($410 spent of $500).',
+            'data' => ['budget_id' => $saasBudget->id, 'percentage' => 82.0],
+            'read_at' => null,
         ]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'spending_anomaly',
+            'title' => 'Unusual Expense Detected',
+            'message' => 'Single transaction of $1,250.00 in Utilities exceeds the 30-day historical average by 240%.',
+            'data' => ['amount' => 1250.00, 'category' => 'Utilities & Internet'],
+            'read_at' => now(),
+        ]);
+
+        // 10. AI Chat Conversations and Messages
+        $conversation = AiConversation::create([
+            'user_id' => $user->id,
+            'title' => 'Q1 Expense Optimization & Cloud Budget',
+            'context_type' => 'budget_planning',
+            'status' => 'active',
+        ]);
+
+        AiMessage::create([
+            'user_id' => $user->id,
+            'conversation_id' => $conversation->id,
+            'role' => 'user',
+            'content' => 'How can I lower my SaaS recurring bills before next quarter?',
+            'token_usage' => 18,
+        ]);
+
+        AiMessage::create([
+            'user_id' => $user->id,
+            'conversation_id' => $conversation->id,
+            'role' => 'assistant',
+            'content' => 'Based on your latest statements, switching AWS on-demand EC2 instances to 1-year reserved savings plans would yield approximately $95/month in net savings.',
+            'token_usage' => 42,
+        ]);
+
+        // 11. AI Recommendations
+        AiRecommendation::create([
+            'user_id' => $user->id,
+            'category_id' => $categories['Software & Subscriptions']->id,
+            'title' => 'Consolidate Cloud Hosting Seats & Switch to Reserved Instances',
+            'recommendation_type' => 'subscription_reduction',
+            'suggested_amount' => 200.00,
+            'potential_savings' => 95.00,
+            'priority' => 'high',
+            'status' => 'pending',
+            'action_payload' => ['provider' => 'AWS', 'plan' => '1yr Compute Savings Plan'],
+        ]);
+
+        // 12. Audit Logs
+        AuditLog::record('user.login', $user, null, ['ip' => '127.0.0.1'], $user->id);
+        AuditLog::record('budget.created', $saasBudget, null, $saasBudget->toArray(), $user->id);
+        AuditLog::record('admin.system_init', $admin, null, ['status' => 'initialized'], $admin->id);
     }
 }

@@ -95,3 +95,4 @@ class ProcessRecurringTransactionsCommand extends Command
         return Command::SUCCESS;
     }
 }
+

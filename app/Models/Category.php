@@ -17,8 +17,30 @@ class Category extends Model
         'type',
         'icon',
         'color',
+        'is_default',
+        'status',
         'parent_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_default' => 'boolean',
+            'status' => 'boolean',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function ($category) {
+            if (empty($category->user_id)) {
+                $category->is_default = true;
+            }
+            if ($category->status === null) {
+                $category->status = true;
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {
@@ -43,6 +65,11 @@ class Category extends Model
     public function budgets(): HasMany
     {
         return $this->hasMany(Budget::class);
+    }
+
+    public function budgetCategories(): HasMany
+    {
+        return $this->hasMany(BudgetCategory::class);
     }
 
     /**

@@ -126,3 +126,4 @@ class InvoiceController extends Controller
         return back()->with('success', 'Invoice status updated.');
     }
 }
+

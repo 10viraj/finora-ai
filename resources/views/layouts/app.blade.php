@@ -13,54 +13,152 @@
 </head>
 <body>
 <div class="app-wrapper">
+    <!-- Mobile Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- Sidebar -->
-    <aside class="sidebar">
-        <a href="{{ route('dashboard') }}" class="brand">
-            <i class="bi bi-wallet2 text-primary fs-4"></i>
-            <div>
-                <span class="fw-bold tracking-tight">FinTrack</span><span class="text-primary fw-bold">.AI</span>
+    <aside class="sidebar" id="appSidebar">
+        @if(request()->is('admin*'))
+            <!-- Admin Console Brand -->
+            <div class="d-flex align-items-center justify-content-between p-3 border-bottom border-secondary border-opacity-25">
+                <a href="{{ route('admin.index') }}" class="brand p-0 border-0">
+                    <i class="bi bi-shield-check text-danger fs-4"></i>
+                    <div>
+                        <span class="fw-bold tracking-tight">Finora</span><span class="text-danger fw-bold">.Admin</span>
+                    </div>
+                </a>
+                <button type="button" class="btn btn-sm btn-link text-white-50 text-decoration-none d-lg-none p-1 sidebar-close-trigger" aria-label="Close sidebar">
+                    <i class="bi bi-x-lg fs-5"></i>
+                </button>
             </div>
-        </a>
 
-        <div class="sidebar-nav">
-            <div class="nav-label">Main Menu</div>
-            <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                <i class="bi bi-grid-1x2-fill"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{{ route('transactions.index') }}" class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}">
-                <i class="bi bi-arrow-left-right"></i>
-                <span>Transactions</span>
-            </a>
-            <a href="{{ route('accounts.index') }}" class="nav-link {{ request()->routeIs('accounts.*') ? 'active' : '' }}">
-                <i class="bi bi-bank2"></i>
-                <span>Accounts & Wallets</span>
-            </a>
-            <a href="{{ route('budgets.index') }}" class="nav-link {{ request()->routeIs('budgets.*') ? 'active' : '' }}">
-                <i class="bi bi-pie-chart-fill"></i>
-                <span>Budgets</span>
-            </a>
+            <div class="sidebar-nav">
+                <div class="nav-label">Admin Console</div>
+                <a href="{{ route('admin.index') }}" class="nav-link {{ request()->routeIs('admin.index') || request()->routeIs('admin.overview') ? 'active' : '' }}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Users</span>
+                </a>
+                <a href="{{ route('admin.roles') }}" class="nav-link {{ request()->routeIs('admin.roles') ? 'active' : '' }}">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <span>Roles &amp; Permissions</span>
+                </a>
+                <a href="{{ route('admin.categories') }}" class="nav-link {{ request()->routeIs('admin.categories') ? 'active' : '' }}">
+                    <i class="bi bi-tags-fill"></i>
+                    <span>Categories</span>
+                </a>
+                <a href="{{ route('admin.subscriptions') }}" class="nav-link {{ request()->routeIs('admin.subscriptions') ? 'active' : '' }}">
+                    <i class="bi bi-credit-card-fill"></i>
+                    <span>Subscription Plans</span>
+                </a>
+                <a href="{{ route('admin.ai-usage') }}" class="nav-link {{ request()->routeIs('admin.ai-usage') ? 'active' : '' }}">
+                    <i class="bi bi-cpu-fill"></i>
+                    <span>AI Usage</span>
+                </a>
+                <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
+                    <i class="bi bi-sliders"></i>
+                    <span>System Settings</span>
+                </a>
+                <a href="{{ route('admin.audit-logs') }}" class="nav-link {{ request()->routeIs('admin.audit-logs') ? 'active' : '' }}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Audit Logs</span>
+                </a>
 
-            <div class="nav-label mt-3">Business & Advisory</div>
-            <a href="{{ route('invoices.index') }}" class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
-                <i class="bi bi-receipt-cutoff"></i>
-                <span>Invoicing</span>
-            </a>
-            <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
-                <i class="bi bi-file-earmark-bar-graph"></i>
-                <span>Reports & Exports</span>
-            </a>
-            <a href="{{ route('ai.index') }}" class="nav-link {{ request()->routeIs('ai.*') ? 'active' : '' }}">
-                <i class="bi bi-stars text-warning"></i>
-                <span>AI Financial Advisor</span>
-            </a>
+                <div class="nav-label mt-4">Exit Console</div>
+                <a href="{{ route('dashboard') }}" class="nav-link text-warning">
+                    <i class="bi bi-arrow-left-square-fill"></i>
+                    <span>Back to App Dashboard</span>
+                </a>
+            </div>
+        @else
+            <!-- Standard SaaS Brand -->
+            <div class="d-flex align-items-center justify-content-between p-3 border-bottom border-secondary border-opacity-25">
+                <a href="{{ route('dashboard') }}" class="brand p-0 border-0">
+                    <i class="bi bi-wallet2 text-primary fs-4"></i>
+                    <div>
+                        <span class="fw-bold tracking-tight">Finora</span><span class="text-primary fw-bold">.AI</span>
+                    </div>
+                </a>
+                <button type="button" class="btn btn-sm btn-link text-white-50 text-decoration-none d-lg-none p-1 sidebar-close-trigger" aria-label="Close sidebar">
+                    <i class="bi bi-x-lg fs-5"></i>
+                </button>
+            </div>
 
-            <div class="nav-label mt-3">Preferences</div>
-            <a href="{{ route('profile.show') }}" class="nav-link {{ request()->routeIs('profile.*') ? 'active' : '' }}">
-                <i class="bi bi-gear-fill"></i>
-                <span>Settings & Profile</span>
-            </a>
-        </div>
+            <div class="sidebar-nav">
+                <div class="nav-label">Main Menu</div>
+                <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ route('transactions.index') }}" class="nav-link {{ request()->routeIs('transactions.index') && !request()->filled('type') ? 'active' : '' }}">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Transactions</span>
+                </a>
+                <a href="{{ route('transactions.income') }}" class="nav-link {{ request()->get('type') === 'income' ? 'active' : '' }}">
+                    <i class="bi bi-arrow-down-left-circle-fill text-success"></i>
+                    <span>Income</span>
+                </a>
+                <a href="{{ route('transactions.expenses') }}" class="nav-link {{ request()->get('type') === 'expense' ? 'active' : '' }}">
+                    <i class="bi bi-arrow-up-right-circle-fill text-danger"></i>
+                    <span>Expenses</span>
+                </a>
+                <a href="{{ route('categories.index') }}" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                    <i class="bi bi-tags-fill"></i>
+                    <span>Categories</span>
+                </a>
+                <a href="{{ route('accounts.index') }}" class="nav-link {{ request()->routeIs('accounts.*') ? 'active' : '' }}">
+                    <i class="bi bi-bank2"></i>
+                    <span>Accounts</span>
+                </a>
+                <a href="{{ route('budgets.index') }}" class="nav-link {{ request()->routeIs('budgets.*') ? 'active' : '' }}">
+                    <i class="bi bi-pie-chart-fill"></i>
+                    <span>Budgets</span>
+                </a>
+                <a href="{{ route('goals.index') }}" class="nav-link {{ request()->routeIs('goals.*') ? 'active' : '' }}">
+                    <i class="bi bi-bullseye"></i>
+                    <span>Financial Goals</span>
+                </a>
+
+                <div class="nav-label mt-3">Intelligence & Reports</div>
+                <a href="{{ route('ai.index') }}" class="nav-link {{ request()->routeIs('ai.*') ? 'active' : '' }}">
+                    <i class="bi bi-stars text-warning"></i>
+                    <span>AI Assistant</span>
+                </a>
+                <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                    <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                    <span>Reports</span>
+                </a>
+                @php
+                    $unreadAlertsCount = Auth::check() ? Auth::user()->notifications()->whereNull('read_at')->count() : 0;
+                @endphp
+                <a href="{{ route('notifications.index') }}" class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('notifications.*') ? 'active' : '' }}">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-bell-fill"></i>
+                        <span>Notifications</span>
+                    </div>
+                    @if($unreadAlertsCount > 0)
+                        <span class="badge bg-danger rounded-pill" style="font-size: 0.65rem;">{{ $unreadAlertsCount }}</span>
+                    @endif
+                </a>
+
+                <div class="nav-label mt-3">Preferences</div>
+                <a href="{{ route('profile.show') }}" class="nav-link {{ request()->routeIs('profile.*') ? 'active' : '' }}">
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Settings</span>
+                </a>
+
+                @if(Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->role === 'admin'))
+                    <div class="nav-label mt-3">Administration</div>
+                    <a href="{{ route('admin.index') }}" class="nav-link text-danger-emphasis">
+                        <i class="bi bi-shield-lock-fill text-danger"></i>
+                        <span>Admin Console</span>
+                    </a>
+                @endif
+            </div>
+        @endif
 
         <!-- User Brief Footer -->
         <div class="p-3 border-top border-secondary border-opacity-25 mt-auto">
@@ -90,19 +188,23 @@
     <div class="main-content">
         <!-- Top Navbar -->
         <header class="top-navbar d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center gap-3">
-                <h5 class="mb-0 fw-bold">@yield('page-title', 'Financial Dashboard')</h5>
+            <div class="d-flex align-items-center gap-2 gap-md-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm d-lg-none py-1 px-2" id="sidebarToggleBtn" aria-label="Toggle navigation">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+                <h5 class="mb-0 fw-bold fs-6 fs-md-5 text-truncate" style="max-width: 190px;">@yield('page-title', 'Financial Dashboard')</h5>
                 @if(Auth::user()->business_name)
-                    <span class="badge bg-light text-dark border px-2 py-1">
+                    <span class="badge bg-light text-dark border px-2 py-1 d-none d-sm-inline-flex">
                         <i class="bi bi-building me-1 text-primary"></i>{{ Auth::user()->business_name }}
                     </span>
                 @endif
             </div>
 
             <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#newTransactionModal">
+                <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm px-2 px-sm-3" data-bs-toggle="modal" data-bs-target="#newTransactionModal">
                     <i class="bi bi-plus-lg"></i>
-                    <span>Record Transaction</span>
+                    <span class="d-none d-sm-inline">Record Transaction</span>
+                    <span class="d-inline d-sm-none">Record</span>
                 </button>
                 <a href="{{ route('reports.index') }}" class="btn btn-outline-secondary btn-sm" title="Quick Reports">
                     <i class="bi bi-download"></i>
@@ -116,6 +218,17 @@
                 <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 shadow-sm" role="alert">
                     <i class="bi bi-check-circle-fill text-success fs-5"></i>
                     <div>{{ session('success') }}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if(session('budget_alert'))
+                <div class="alert alert-{{ session('budget_alert')['severity'] === 'danger' ? 'danger' : 'warning' }} alert-dismissible fade show d-flex align-items-center gap-2 shadow-sm" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                    <div class="flex-grow-1">
+                        <strong>Budget Notice:</strong> {{ session('budget_alert')['message'] }}
+                        <a href="{{ route('budgets.index') }}" class="alert-link ms-2">Manage Budgets &rarr;</a>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
@@ -135,6 +248,33 @@
             @yield('content')
         </main>
     </div>
+    <!-- /Main Content -->
+
+    <!-- Mobile Bottom Navigation Bar (Visible on mobile/tablet screens) -->
+    <nav class="mobile-bottom-nav d-lg-none" aria-label="Mobile Navigation">
+        <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            <i class="bi bi-grid-1x2-fill"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{{ route('transactions.index') }}" class="nav-item {{ request()->routeIs('transactions.*') && !request()->filled('type') ? 'active' : '' }}">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Activity</span>
+        </a>
+
+        <!-- Center Floating Action Button (FAB) -->
+        <button type="button" class="fab-item" data-bs-toggle="modal" data-bs-target="#newTransactionModal" aria-label="New Transaction">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+
+        <a href="{{ route('ai.index') }}" class="nav-item {{ request()->routeIs('ai.*') ? 'active' : '' }}">
+            <i class="bi bi-stars text-warning"></i>
+            <span>AI Copilot</span>
+        </a>
+        <button type="button" class="nav-item" id="sidebarBottomToggleBtn" aria-label="Open Menu">
+            <i class="bi bi-grid-3x3-gap-fill"></i>
+            <span>Menu</span>
+        </button>
+    </nav>
 </div>
 
 <!-- Global Quick Add Transaction Modal -->
@@ -337,6 +477,47 @@ function toggleModalType(type) {
 function toggleRecurringModal(checked) {
     document.getElementById('recurringIntervalWrapper').style.display = checked ? 'block' : 'none';
 }
+
+// Mobile Sidebar Drawer & Backdrop Handlers
+document.addEventListener('DOMContentLoaded', function () {
+    const sidebar = document.getElementById('appSidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    const toggleBtn = document.getElementById('sidebarToggleBtn');
+    const bottomToggleBtn = document.getElementById('sidebarBottomToggleBtn');
+    const closeButtons = document.querySelectorAll('.sidebar-close-trigger');
+
+    function openSidebar() {
+        if (sidebar && backdrop) {
+            sidebar.classList.add('show');
+            backdrop.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeSidebar() {
+        if (sidebar && backdrop) {
+            sidebar.classList.remove('show');
+            backdrop.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
+    if (bottomToggleBtn) bottomToggleBtn.addEventListener('click', openSidebar);
+    closeButtons.forEach(btn => btn.addEventListener('click', closeSidebar));
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+    // Auto-close on link navigation on mobile
+    if (sidebar) {
+        sidebar.querySelectorAll('.nav-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                if (window.innerWidth < 992) {
+                    closeSidebar();
+                }
+            });
+        });
+    }
+});
 </script>
 
 @stack('scripts')

@@ -135,3 +135,4 @@ class AuthController extends Controller
         return back()->with('success', 'Profile and settings updated successfully.');
     }
 }
+

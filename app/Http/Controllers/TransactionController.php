@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTransactionRequest;
 use App\Models\Account;
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Services\BudgetService;
+use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class TransactionController extends Controller
 {
+    public function __construct(
+        protected TransactionService $transactionService,
+        protected BudgetService $budgetService
+    ) {}
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -90,64 +96,26 @@ class TransactionController extends Controller
         return view('transactions.index', compact('transactions', 'accounts', 'parentCategories'));
     }
 
-    public function store(Request $request)
+    public function store(StoreTransactionRequest $request)
     {
         $user = Auth::user();
 
-        $validated = $request->validate([
-            'account_id' => ['required', 'exists:accounts,id'],
-            'destination_account_id' => ['nullable', 'required_if:type,transfer', 'different:account_id', 'exists:accounts,id'],
-            'category_id' => ['nullable', 'required_unless:type,transfer', 'exists:categories,id'],
-            'type' => ['required', 'in:income,expense,transfer'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'fee' => ['nullable', 'numeric', 'min:0'],
-            'transaction_date' => ['required', 'date'],
-            'description' => ['required', 'string', 'max:255'],
-            'payee_payer' => ['nullable', 'string', 'max:255'],
-            'payment_method' => ['required', 'string', 'in:bank_transfer,credit_card,debit_card,cash,upi,paypal,stripe,check,other'],
-            'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string'],
-            'is_recurring' => ['nullable', 'boolean'],
-            'recurrence_interval' => ['nullable', 'required_if:is_recurring,1', 'in:daily,weekly,monthly,quarterly,yearly'],
-            'receipt' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'], // 5MB max
-        ]);
+        $createdTx = $this->transactionService->recordTransaction(
+            $user,
+            $request->validated(),
+            $request->file('receipt')
+        );
 
-        $receiptPath = null;
-        if ($request->hasFile('receipt')) {
-            $receiptPath = $request->file('receipt')->store('receipts/' . $user->id, 'local');
+        $response = back()->with('success', 'Transaction successfully recorded!');
+
+        if ($createdTx && $createdTx->type === 'expense') {
+            $budgetAlert = $this->budgetService->checkTransactionAlert($user, $createdTx);
+            if ($budgetAlert) {
+                $response->with('budget_alert', $budgetAlert);
+            }
         }
 
-        DB::transaction(function () use ($user, $validated, $receiptPath) {
-            $tx = $user->transactions()->create([
-                'account_id' => $validated['account_id'],
-                'destination_account_id' => $validated['destination_account_id'] ?? null,
-                'category_id' => $validated['category_id'] ?? null,
-                'type' => $validated['type'],
-                'amount' => $validated['amount'],
-                'fee' => $validated['fee'] ?? 0,
-                'transaction_date' => $validated['transaction_date'],
-                'description' => $validated['description'],
-                'payee_payer' => $validated['payee_payer'] ?? null,
-                'payment_method' => $validated['payment_method'],
-                'reference_number' => $validated['reference_number'] ?? null,
-                'receipt_path' => $receiptPath,
-                'notes' => $validated['notes'] ?? null,
-                'is_recurring' => (bool) ($validated['is_recurring'] ?? false),
-                'recurrence_interval' => !empty($validated['is_recurring']) ? ($validated['recurrence_interval'] ?? 'monthly') : null,
-                'status' => 'completed',
-            ]);
-
-            // Recalculate account balances
-            $sourceAccount = Account::find($validated['account_id']);
-            $sourceAccount->recalculateBalance();
-
-            if (!empty($validated['destination_account_id'])) {
-                $destAccount = Account::find($validated['destination_account_id']);
-                $destAccount->recalculateBalance();
-            }
-        });
-
-        return back()->with('success', 'Transaction successfully recorded!');
+        return $response;
     }
 
     public function edit(Transaction $transaction)
@@ -186,50 +154,18 @@ class TransactionController extends Controller
             'receipt' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        $oldSourceId = $transaction->account_id;
-        $oldDestId = $transaction->destination_account_id;
+        $this->transactionService->updateTransaction($transaction, $validated, $request->file('receipt'));
 
-        DB::transaction(function () use ($transaction, $validated, $request, $oldSourceId, $oldDestId) {
-            $data = [
-                'account_id' => $validated['account_id'],
-                'destination_account_id' => $validated['destination_account_id'] ?? null,
-                'category_id' => $validated['category_id'] ?? null,
-                'type' => $validated['type'],
-                'amount' => $validated['amount'],
-                'fee' => $validated['fee'] ?? 0,
-                'transaction_date' => $validated['transaction_date'],
-                'description' => $validated['description'],
-                'payee_payer' => $validated['payee_payer'] ?? null,
-                'payment_method' => $validated['payment_method'],
-                'reference_number' => $validated['reference_number'] ?? null,
-                'notes' => $validated['notes'] ?? null,
-                'is_recurring' => (bool) ($validated['is_recurring'] ?? false),
-                'recurrence_interval' => !empty($validated['is_recurring']) ? ($validated['recurrence_interval'] ?? 'monthly') : null,
-            ];
+        $response = back()->with('success', 'Transaction updated successfully!');
 
-            if ($request->hasFile('receipt')) {
-                // Delete old receipt if exists
-                if ($transaction->receipt_path && Storage::disk('local')->exists($transaction->receipt_path)) {
-                    Storage::disk('local')->delete($transaction->receipt_path);
-                }
-                $data['receipt_path'] = $request->file('receipt')->store('receipts/' . $transaction->user_id, 'local');
+        if ($transaction->type === 'expense') {
+            $budgetAlert = $this->budgetService->checkTransactionAlert(Auth::user(), $transaction);
+            if ($budgetAlert) {
+                $response->with('budget_alert', $budgetAlert);
             }
+        }
 
-            $transaction->update($data);
-
-            // Recalculate affected accounts
-            Account::find($oldSourceId)?->recalculateBalance();
-            if ($oldDestId) {
-                Account::find($oldDestId)?->recalculateBalance();
-            }
-
-            Account::find($validated['account_id'])?->recalculateBalance();
-            if (!empty($validated['destination_account_id'])) {
-                Account::find($validated['destination_account_id'])?->recalculateBalance();
-            }
-        });
-
-        return back()->with('success', 'Transaction updated successfully!');
+        return $response;
     }
 
     public function destroy(Transaction $transaction)
@@ -238,22 +174,7 @@ class TransactionController extends Controller
             abort(403);
         }
 
-        $sourceId = $transaction->account_id;
-        $destId = $transaction->destination_account_id;
-        $receiptPath = $transaction->receipt_path;
-
-        DB::transaction(function () use ($transaction, $sourceId, $destId, $receiptPath) {
-            if ($receiptPath && Storage::disk('local')->exists($receiptPath)) {
-                Storage::disk('local')->delete($receiptPath);
-            }
-
-            $transaction->delete();
-
-            Account::find($sourceId)?->recalculateBalance();
-            if ($destId) {
-                Account::find($destId)?->recalculateBalance();
-            }
-        });
+        $this->transactionService->deleteTransaction($transaction);
 
         return back()->with('success', 'Transaction deleted successfully.');
     }
@@ -269,5 +190,41 @@ class TransactionController extends Controller
         }
 
         return Storage::disk('local')->response($transaction->receipt_path);
+    }
+
+    /**
+     * Upload a receipt and extract amount, date, and merchant using OCR / text analysis.
+     */
+    public function scanReceipt(Request $request, \App\Services\AI\ReceiptScannerService $scanner)
+    {
+        $request->validate([
+            'receipt' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
+        $data = $scanner->scan(Auth::user(), $request->file('receipt'));
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Import existing transaction records from a CSV file.
+     */
+    public function importCsv(Request $request, \App\Services\TransactionCsvImportService $importer)
+    {
+        $request->validate([
+            'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'account_id' => ['nullable', 'exists:accounts,id'],
+        ]);
+
+        $result = $importer->import(Auth::user(), $request->file('csv_file'), $request->account_id);
+
+        if (!$result['success']) {
+            return back()->withErrors(['csv_file' => 'Import failed: ' . implode(', ', $result['errors'])]);
+        }
+
+        return back()->with('success', "CSV Import Complete: {$result['imported']} transactions imported, {$result['skipped']} duplicates/zero rows skipped.");
     }
 }

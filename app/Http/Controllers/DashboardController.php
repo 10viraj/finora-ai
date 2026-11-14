@@ -102,11 +102,25 @@ class DashboardController extends Controller
             ->where('is_dismissed', false)
             ->first();
 
+        // Currency Symbol
+        $currencySymbol = match($user->currency) {
+            'INR' => '₹',
+            'USD' => '$',
+            'EUR' => '€',
+            'GBP' => '£',
+            'AED' => 'AED ',
+            'CAD' => 'C$',
+            'JPY' => '¥',
+            'AUD' => 'A$',
+            default => ($user->currency ?: '₹') . ' ',
+        };
+
         // Quick categories list for transaction modal
         $categories = Category::forUser($user->id)->get();
 
         return view('dashboard.index', compact(
             'user',
+            'currencySymbol',
             'accounts',
             'totalBalance',
             'monthlyIncome',
@@ -128,3 +142,4 @@ class DashboardController extends Controller
         ));
     }
 }
+

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->string('role')->default('individual')->after('email'); // individual, small_business, admin
             $table->string('business_name')->nullable()->after('role');
-            $table->string('currency', 3)->default('USD')->after('business_name');
+            $table->string('currency', 3)->default('INR')->after('business_name');
             $table->string('phone')->nullable()->after('currency');
             $table->string('ai_provider')->default('openai')->after('phone'); // openai, custom
             $table->string('ai_api_key')->nullable()->after('ai_provider');
@@ -42,3 +42,4 @@ return new class extends Migration
         });
     }
 };
+

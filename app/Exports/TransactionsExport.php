@@ -11,12 +11,34 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 class TransactionsExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
 {
     protected int $userId;
+    protected ?string $startDate;
+    protected ?string $endDate;
     protected ?string $monthYear;
 
-    public function __construct(int $userId, ?string $monthYear = null)
+    public function __construct(int $userId, ?string $startDateOrMonth = null, ?string $endDate = null)
     {
         $this->userId = $userId;
-        $this->monthYear = $monthYear;
+
+        // If second param provided, it's a date range
+        if ($endDate !== null) {
+            $this->startDate = $startDateOrMonth;
+            $this->endDate = $endDate;
+            $this->monthYear = null;
+        } elseif ($startDateOrMonth !== null && strlen($startDateOrMonth) === 7) {
+            // YYYY-MM
+            $this->monthYear = $startDateOrMonth;
+            $this->startDate = null;
+            $this->endDate = null;
+        } elseif ($startDateOrMonth !== null && strlen($startDateOrMonth) === 10) {
+            // Single date YYYY-MM-DD
+            $this->startDate = $startDateOrMonth;
+            $this->endDate = $startDateOrMonth;
+            $this->monthYear = null;
+        } else {
+            $this->monthYear = $startDateOrMonth;
+            $this->startDate = null;
+            $this->endDate = null;
+        }
     }
 
     public function collection()
@@ -26,7 +48,10 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, S
             ->where('user_id', $this->userId)
             ->latest('transaction_date');
 
-        if ($this->monthYear) {
+        if ($this->startDate && $this->endDate) {
+            $query->whereDate('transaction_date', '>=', $this->startDate)
+                  ->whereDate('transaction_date', '<=', $this->endDate);
+        } elseif ($this->monthYear) {
             $query->where('transaction_date', 'like', "{$this->monthYear}%");
         }
 

@@ -56,3 +56,4 @@ class AccountController extends Controller
         return back()->with('success', 'Account status updated.');
     }
 }
+

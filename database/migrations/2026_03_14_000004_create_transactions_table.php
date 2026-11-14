@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->enum('type', ['income', 'expense', 'transfer'])->default('expense');
             $table->decimal('amount', 15, 2);
+            $table->string('currency', 3)->default('INR');
             $table->decimal('fee', 15, 2)->default(0);
             $table->date('transaction_date');
             $table->string('description');
@@ -30,6 +31,7 @@ return new class extends Migration
             $table->boolean('is_recurring')->default(false);
             $table->enum('recurrence_interval', ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'])->nullable();
             $table->enum('status', ['completed', 'pending', 'cancelled'])->default('completed');
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['user_id', 'transaction_date']);
@@ -46,3 +48,4 @@ return new class extends Migration
         Schema::dropIfExists('transactions');
     }
 };
+

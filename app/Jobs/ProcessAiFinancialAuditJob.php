@@ -25,3 +25,4 @@ class ProcessAiFinancialAuditJob implements ShouldQueue
         Log::info("AI financial audit completed for User #{$this->user->id}. Generated " . count($insights) . " new insights.");
     }
 }
+

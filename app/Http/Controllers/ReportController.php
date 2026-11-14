@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\TransactionsExport;
-use App\Models\Category;
+use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -12,98 +12,101 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
+    protected ReportService $reportService;
+
+    public function __construct(ReportService $reportService)
+    {
+        $this->reportService = $reportService;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
-        $selectedMonth = $request->input('month', now()->format('Y-m'));
+        $now = Carbon::now();
 
-        $income = $user->getMonthlyIncome($selectedMonth);
-        $expense = $user->getMonthlyExpenses($selectedMonth);
-        $savings = $user->getMonthlySavings($selectedMonth);
-        $savingsRate = $user->getSavingsRate($selectedMonth);
+        $period = $request->input('period', 'monthly');
+        if (!in_array($period, ['daily', 'weekly', 'monthly'])) {
+            $period = 'monthly';
+        }
 
-        $categorySpending = $user->transactions()
-            ->selectRaw('categories.name, categories.color, SUM(transactions.amount) as total')
-            ->join('categories', 'transactions.category_id', '=', 'categories.id')
-            ->where('transactions.type', 'expense')
-            ->where('transactions.status', 'completed')
-            ->where('transactions.transaction_date', 'like', "$selectedMonth%")
-            ->groupBy('categories.name', 'categories.color')
-            ->orderByDesc('total')
-            ->get();
+        $selectedDate = $request->input('date', $now->format('Y-m-d'));
+        $selectedWeek = $request->input('week', $now->format('Y-m-d'));
+        $selectedMonth = $request->input('month', $now->format('Y-m'));
 
-        $budgets = $user->budgets()
-            ->with('category')
-            ->where(function ($q) use ($selectedMonth) {
-                $q->whereNull('month_year')->orWhere('month_year', $selectedMonth);
-            })
-            ->get();
+        $timeframe = match ($period) {
+            'daily' => $selectedDate,
+            'weekly' => $selectedWeek,
+            default => $selectedMonth,
+        };
 
-        return view('reports.index', compact(
-            'selectedMonth',
-            'income',
-            'expense',
-            'savings',
-            'savingsRate',
-            'categorySpending',
-            'budgets',
-            'user'
-        ));
+        $activeTab = $request->input('tab', 'overview');
+
+        // Fetch comprehensive report data
+        $reportData = $this->reportService->getReportData($user, $period, $timeframe);
+
+        return view('reports.index', array_merge($reportData, [
+            'user' => $user,
+            'activeTab' => $activeTab,
+            'selectedDate' => $selectedDate,
+            'selectedWeek' => $selectedWeek,
+            'selectedMonth' => $selectedMonth,
+            'largestExpense' => $reportData['largest_expense'],
+        ]));
     }
 
     public function downloadPdf(Request $request)
     {
         $user = Auth::user();
-        $month = $request->input('month', now()->format('Y-m'));
+        $now = Carbon::now();
 
-        $income = $user->getMonthlyIncome($month);
-        $expense = $user->getMonthlyExpenses($month);
-        $savings = $user->getMonthlySavings($month);
-        $savingsRate = $user->getSavingsRate($month);
+        $period = $request->input('period', 'monthly');
+        if (!in_array($period, ['daily', 'weekly', 'monthly'])) {
+            $period = 'monthly';
+        }
 
-        $transactions = $user->transactions()
-            ->with(['account', 'category'])
-            ->where('transaction_date', 'like', "$month%")
-            ->latest('transaction_date')
-            ->get();
+        $timeframe = match ($period) {
+            'daily' => $request->input('date', $now->format('Y-m-d')),
+            'weekly' => $request->input('week', $now->format('Y-m-d')),
+            default => $request->input('month', $now->format('Y-m')),
+        };
 
-        $categorySpending = $user->transactions()
-            ->selectRaw('categories.name, SUM(transactions.amount) as total')
-            ->join('categories', 'transactions.category_id', '=', 'categories.id')
-            ->where('transactions.type', 'expense')
-            ->where('transactions.status', 'completed')
-            ->where('transactions.transaction_date', 'like', "$month%")
-            ->groupBy('categories.name')
-            ->orderByDesc('total')
-            ->get();
+        $reportData = $this->reportService->getReportData($user, $period, $timeframe);
 
-        $monthName = Carbon::createFromFormat('Y-m', $month)->format('F Y');
+        $pdf = Pdf::loadView('reports.pdf', array_merge($reportData, [
+            'user' => $user,
+        ]));
 
-        $pdf = Pdf::loadView('reports.pdf', compact(
-            'user',
-            'month',
-            'monthName',
-            'income',
-            'expense',
-            'savings',
-            'savingsRate',
-            'transactions',
-            'categorySpending'
-        ));
+        $safeLabel = strtolower(str_replace([' ', '/', ','], '-', $reportData['label']));
+        $safeDate = strtolower(str_replace([' ', '/', ','], '-', $timeframe));
+        $filename = "financial-report-{$safeLabel}-{$safeDate}.pdf";
 
-        return $pdf->download("financial-statement-{$month}.pdf");
+        return $pdf->download($filename);
     }
 
     public function exportExcel(Request $request)
     {
         $user = Auth::user();
-        $month = $request->input('month');
+        $now = Carbon::now();
+
+        $period = $request->input('period', 'monthly');
         $format = $request->input('format', 'xlsx');
+        if (!in_array($format, ['xlsx', 'csv'])) {
+            $format = 'xlsx';
+        }
 
-        $filename = $month
-            ? "transactions-{$month}.{$format}"
-            : "all-transactions-" . now()->format('Ymd') . ".{$format}";
+        $timeframe = match ($period) {
+            'daily' => $request->input('date', $now->format('Y-m-d')),
+            'weekly' => $request->input('week', $now->format('Y-m-d')),
+            default => $request->input('month', $now->format('Y-m')),
+        };
 
-        return Excel::download(new TransactionsExport($user->id, $month), $filename);
+        $reportData = $this->reportService->getReportData($user, $period, $timeframe);
+
+        $filename = "transactions-{$period}-{$timeframe}.{$format}";
+
+        return Excel::download(
+            new TransactionsExport($user->id, $reportData['start_date'], $reportData['end_date']),
+            $filename
+        );
     }
 }

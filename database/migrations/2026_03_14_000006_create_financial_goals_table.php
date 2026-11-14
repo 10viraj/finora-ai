@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('category')->default('savings'); // savings, emergency_fund, equipment, debt_payoff, expansion
             $table->text('notes')->nullable();
             $table->enum('status', ['in_progress', 'completed', 'paused'])->default('in_progress');
+            $table->softDeletes();
             $table->timestamps();
         });
     }
@@ -34,3 +35,4 @@ return new class extends Migration
         Schema::dropIfExists('financial_goals');
     }
 };
+

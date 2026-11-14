@@ -195,7 +195,7 @@ class TransactionTest extends TestCase
         $response = $this->actingAs($user)->delete("/transactions/{$tx->id}");
         $response->assertSessionHas('success');
 
-        $this->assertDatabaseMissing('transactions', ['id' => $tx->id]);
+        $this->assertSoftDeleted('transactions', ['id' => $tx->id]);
 
         $account->refresh();
         $this->assertEquals(1000.00, $account->balance);

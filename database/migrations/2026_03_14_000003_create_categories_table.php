@@ -14,10 +14,12 @@ return new class extends Migration
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->cascadeOnDelete(); // null = system default
-            $table->string('name');
+            $table->string('name', 100);
             $table->enum('type', ['income', 'expense'])->default('expense');
-            $table->string('icon')->default('bi-tag');
+            $table->string('icon', 100)->default('bi-tag');
             $table->string('color', 20)->default('#64748b');
+            $table->boolean('is_default')->default(false);
+            $table->boolean('status')->default(true);
             $table->foreignId('parent_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->timestamps();
         });
@@ -31,3 +33,4 @@ return new class extends Migration
         Schema::dropIfExists('categories');
     }
 };
+
